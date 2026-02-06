@@ -3,7 +3,7 @@ package com.example.lab5_starter;
 import java.io.Serializable;
 
 // Movie object
-public class City implements Serializable {
+public class  City implements Serializable {
 
     // attributes
     private String name;
