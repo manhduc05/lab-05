@@ -11,6 +11,7 @@ import android.widget.ListView;
 import androidx.activity.EdgeToEdge;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.app.AlertDialog;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
@@ -89,9 +90,18 @@ public class MainActivity extends AppCompatActivity implements CityDialogFragmen
 
         cityListView.setOnItemLongClickListener((adapterView, view, position, id) -> {
             City selectedCity = cityArrayAdapter.getItem(position);
-            deleteCity(selectedCity);
-            return true;
+
+            // Confirm before deleting
+            new AlertDialog.Builder(MainActivity.this)
+                    .setTitle("Delete city")
+                    .setMessage("Delete " + selectedCity.getName() + " from the list?")
+                    .setNegativeButton("Cancel", null)
+                    .setPositiveButton("Delete", (d, which) -> deleteCity(selectedCity, position))
+                    .show();
+
+            return true; // consume the long-click
         });
+
     }
 
     @Override
@@ -106,10 +116,20 @@ public class MainActivity extends AppCompatActivity implements CityDialogFragmen
                 .addOnSuccessListener(aVoid -> Log.d(TAG, "City updated: " + name));
     }
 
-    private void deleteCity(City city) {
+    private void deleteCity(City city, int position) {
+        // Optimistically remove from UI (Firestore listener will later reconcile the list)
+        cityArrayList.remove(position);
+        cityArrayAdapter.notifyDataSetChanged();
+
         citiesRef.document(city.getName())
                 .delete()
-                .addOnSuccessListener(aVoid -> Log.d(TAG, "City deleted: " + city.getName()));
+                .addOnSuccessListener(aVoid -> Log.d(TAG, "City deleted: " + city.getName()))
+                .addOnFailureListener(e -> {
+                    Log.w(TAG, "Failed to delete city: " + city.getName(), e);
+                    // Put it back if Firestore delete fails
+                    cityArrayList.add(position, city);
+                    cityArrayAdapter.notifyDataSetChanged();
+                });
     }
 
     @Override
